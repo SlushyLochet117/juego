@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <title>Casa Embrujada - Exploración 3D</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="main.css">
+</head>
+
+<body>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "../build/three.module.js",
+        "three/addons/": "./jsm/"
+    }
+}
+</script>
+
+<script type="module">
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+let camera, scene, renderer;
+let character, mixer;
+const clock = new THREE.Clock();
+
+init();
+animate();
+
+function init() {
+
+    // -----------------------------------
+    // ESCENA
+    // -----------------------------------
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x888888);
+
+    // niebla gris clara
+    //scene.fog = new THREE.Fog(0xcccccc, 30, 300);
+
+    // -----------------------------------
+    // CAMARA
+    // -----------------------------------
+
+    camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        1,
+        3000
+    );
+
+    // cámara más lejos
+    camera.position.set(0, 100, 300);
+
+    // -----------------------------------
+    // LUCES
+    // -----------------------------------
+
+    const hemiLight = new THREE.HemisphereLight(
+        0xffffff,
+        0x444444,
+        3
+    );
+    hemiLight.position.set(0, 200, 0);
+    scene.add(hemiLight);
+
+    const moonLight = new THREE.DirectionalLight(
+        0xffffff,
+        4
+    );
+    moonLight.position.set(100, 300, 100);
+    moonLight.castShadow = true;
+    scene.add(moonLight);
+
+    const topLight = new THREE.DirectionalLight(
+        0xffffff,
+        3
+    );
+    topLight.position.set(0, 500, 0);
+    topLight.castShadow = true;
+    scene.add(topLight);
+
+    // helper visual para ubicarte
+    const axesHelper = new THREE.AxesHelper(100);
+    scene.add(axesHelper);
+
+    // -----------------------------------
+    // PISO
+    // -----------------------------------
+
+    const textureLoader = new THREE.TextureLoader();
+
+    const floorTexture = textureLoader.load(
+        './textures/cespet.jpg'
+    );
+
+    floorTexture.wrapS = THREE.RepeatWrapping;
+    floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(20, 20);
+
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(3000, 3000),
+        new THREE.MeshStandardMaterial({
+            map: floorTexture
+        })
+    );
+
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // -----------------------------------
+    // RENDER
+    // -----------------------------------
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    document.body.appendChild(renderer.domElement);
+
+    // -----------------------------------
+    // CONTROLES
+    // -----------------------------------
+
+    const controls = new OrbitControls(
+        camera,
+        renderer.domElement
+    );
+
+    controls.target.set(0, 50, 0);
+    controls.update();
+
+    // -----------------------------------
+    // CARGAR CASA
+    // -----------------------------------
+
+    const gltfLoader = new GLTFLoader();
+
+    gltfLoader.load(
+        './models/casa/mansionInterior.glb',
+
+        function (gltf) {
+
+            const house = gltf.scene;
+
+            // casa más pequeña
+            house.scale.set(25, 25, 25);
+
+            house.position.set(0, 0, 0);
+
+            house.traverse(function (child) {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            scene.add(house);
+
+            console.log("Casa cargada correctamente");
+        },
+
+        undefined,
+
+        function (error) {
+            console.error("Error cargando casa:", error);
+        }
+    );
+
+    // -----------------------------------
+    // CARGAR PERSONAJE
+    // -----------------------------------
+
+    const fbxLoader = new FBXLoader();
+
+    fbxLoader.load(
+        './models/personaje/idle.fbx',
+
+        function (fbx) {
+
+            character = fbx;
+
+            // personaje más grande
+            character.scale.set(
+                0.3,
+                0.3,
+                0.3
+            );
+
+            // más visible y separado
+            character.position.set(
+                0,
+                0,
+                5
+            );
+
+            character.traverse(function (child) {
+
+                if (child.isMesh) {
+
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+
+                    // material visible forzado
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        roughness: 0.5,
+                        metalness: 0.1
+                    });
+                }
+            });
+
+            // animación
+            if (fbx.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(character);
+                const action = mixer.clipAction(
+                    fbx.animations[0]
+                );
+                action.play();
+            }
+
+            scene.add(character);
+
+            console.log("Personaje cargado correctamente");
+        },
+
+        undefined,
+
+        function (error) {
+            console.error("Error cargando personaje:", error);
+        }
+    );
+
+    // -----------------------------------
+    // RESPONSIVE
+    // -----------------------------------
+
+    window.addEventListener(
+        'resize',
+        onWindowResize
+    );
+}
+
+function onWindowResize() {
+
+    camera.aspect =
+        window.innerWidth / window.innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
+}
+
+function animate() {
+
+    requestAnimationFrame(animate);
+
+    const delta = clock.getDelta();
+
+    if (mixer) {
+        mixer.update(delta);
+    }
+
+    renderer.render(scene, camera);
+}
+
+</script>
+
+</body>
+</html>
