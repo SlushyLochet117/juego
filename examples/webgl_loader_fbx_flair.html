@@ -22,33 +22,56 @@
 <script type="module">
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// ------------------------------------------------
+// VARIABLES GLOBALES
+// ------------------------------------------------
+
 let camera, scene, renderer;
 let character, mixer;
+
+let idleAction;
+let walkAction;
+let runAction;
+let activeAction;
+
 const clock = new THREE.Clock();
+
+const keys = {
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+    shift: false
+};
+
+const moveSpeed = 1.0;
+const runSpeed = 2.0;
+const rotateSpeed = 0.05;
+
+// ------------------------------------------------
+// INICIO
+// ------------------------------------------------
 
 init();
 animate();
 
+// ------------------------------------------------
+// INIT
+// ------------------------------------------------
+
 function init() {
 
-    // -----------------------------------
     // ESCENA
-    // -----------------------------------
-
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x888888);
 
     // niebla gris clara
-    //scene.fog = new THREE.Fog(0xcccccc, 30, 300);
+    scene.fog = new THREE.Fog(0xcccccc, 30, 300);
 
-    // -----------------------------------
     // CAMARA
-    // -----------------------------------
-
     camera = new THREE.PerspectiveCamera(
         45,
         window.innerWidth / window.innerHeight,
@@ -56,12 +79,11 @@ function init() {
         3000
     );
 
-    // cámara más lejos
-    camera.position.set(0, 100, 300);
+    camera.position.set(0, 80, 150);
 
-    // -----------------------------------
+    // ------------------------------------------------
     // LUCES
-    // -----------------------------------
+    // ------------------------------------------------
 
     const hemiLight = new THREE.HemisphereLight(
         0xffffff,
@@ -87,13 +109,13 @@ function init() {
     topLight.castShadow = true;
     scene.add(topLight);
 
-    // helper visual para ubicarte
+    // helper visual
     const axesHelper = new THREE.AxesHelper(100);
     scene.add(axesHelper);
 
-    // -----------------------------------
+    // ------------------------------------------------
     // PISO
-    // -----------------------------------
+    // ------------------------------------------------
 
     const textureLoader = new THREE.TextureLoader();
 
@@ -116,9 +138,9 @@ function init() {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // -----------------------------------
+    // ------------------------------------------------
     // RENDER
-    // -----------------------------------
+    // ------------------------------------------------
 
     renderer = new THREE.WebGLRenderer({
         antialias: true
@@ -134,21 +156,39 @@ function init() {
 
     document.body.appendChild(renderer.domElement);
 
-    // -----------------------------------
-    // CONTROLES
-    // -----------------------------------
-
-    const controls = new OrbitControls(
-        camera,
-        renderer.domElement
-    );
-
-    controls.target.set(0, 50, 0);
-    controls.update();
-
-    // -----------------------------------
+    // ------------------------------------------------
     // CARGAR CASA
-    // -----------------------------------
+    // ------------------------------------------------
+
+    loadHouse();
+
+    // ------------------------------------------------
+    // CARGAR PERSONAJE
+    // ------------------------------------------------
+
+    loadCharacter();
+
+    // ------------------------------------------------
+    // TECLADO
+    // ------------------------------------------------
+
+    setupKeyboard();
+
+    // ------------------------------------------------
+    // RESPONSIVE
+    // ------------------------------------------------
+
+    window.addEventListener(
+        'resize',
+        onWindowResize
+    );
+}
+
+// ------------------------------------------------
+// CARGAR CASA
+// ------------------------------------------------
+
+function loadHouse() {
 
     const gltfLoader = new GLTFLoader();
 
@@ -159,9 +199,7 @@ function init() {
 
             const house = gltf.scene;
 
-            // casa más pequeña
             house.scale.set(25, 25, 25);
-
             house.position.set(0, 0, 0);
 
             house.traverse(function (child) {
@@ -179,16 +217,20 @@ function init() {
         undefined,
 
         function (error) {
-            console.error("Error cargando casa:", error);
+            console.error("Error casa:", error);
         }
     );
+}
 
-    // -----------------------------------
-    // CARGAR PERSONAJE
-    // -----------------------------------
+// ------------------------------------------------
+// CARGAR PERSONAJE
+// ------------------------------------------------
+
+function loadCharacter() {
 
     const fbxLoader = new FBXLoader();
 
+    // IDLE
     fbxLoader.load(
         './models/personaje/idle.fbx',
 
@@ -196,14 +238,12 @@ function init() {
 
             character = fbx;
 
-            // personaje más grande
             character.scale.set(
-                0.3,
-                0.3,
-                0.3
+                0.2,
+                0.2,
+                0.2
             );
 
-            // más visible y separado
             character.position.set(
                 0,
                 0,
@@ -211,51 +251,123 @@ function init() {
             );
 
             character.traverse(function (child) {
-
                 if (child.isMesh) {
-
                     child.castShadow = true;
                     child.receiveShadow = true;
-
-                    // material visible forzado
-                    child.material = new THREE.MeshStandardMaterial({
-                        color: 0xffffff,
-                        roughness: 0.5,
-                        metalness: 0.1
-                    });
                 }
             });
 
-            // animación
-            if (fbx.animations.length > 0) {
-                mixer = new THREE.AnimationMixer(character);
-                const action = mixer.clipAction(
-                    fbx.animations[0]
-                );
-                action.play();
-            }
-
             scene.add(character);
 
-            console.log("Personaje cargado correctamente");
+            mixer = new THREE.AnimationMixer(character);
+
+            idleAction = mixer.clipAction(
+                fbx.animations[0]
+            );
+
+            idleAction.play();
+            activeAction = idleAction;
+
+            // WALK
+            fbxLoader.load(
+                './models/personaje/Injured Walking.fbx',
+
+                function (walkAnim) {
+
+                    walkAction = mixer.clipAction(
+                        walkAnim.animations[0]
+                    );
+
+                    // RUN
+                    fbxLoader.load(
+                        './models/personaje/Slow Run.fbx',
+
+                        function (runAnim) {
+
+                            runAction = mixer.clipAction(
+                                runAnim.animations[0]
+                            );
+
+                            console.log(
+                                "Todas las animaciones cargadas"
+                            );
+                        }
+                    );
+                }
+            );
+
+            console.log("Personaje cargado");
         },
 
         undefined,
 
         function (error) {
-            console.error("Error cargando personaje:", error);
+            console.error("Error personaje:", error);
+        }
+    );
+}
+
+// ------------------------------------------------
+// CAMBIAR ANIMACION
+// ------------------------------------------------
+
+function switchAnimation(newAction) {
+
+    if (!newAction) return;
+    if (activeAction === newAction) return;
+
+    activeAction.fadeOut(0.3);
+
+    newAction
+        .reset()
+        .fadeIn(0.3)
+        .play();
+
+    activeAction = newAction;
+}
+
+// ------------------------------------------------
+// TECLADO
+// ------------------------------------------------
+
+function setupKeyboard() {
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+
+            const key = event.key.toLowerCase();
+
+            if (key === "w") keys.w = true;
+            if (key === "a") keys.a = true;
+            if (key === "s") keys.s = true;
+            if (key === "d") keys.d = true;
+
+            if (event.shiftKey) {
+                keys.shift = true;
+            }
         }
     );
 
-    // -----------------------------------
-    // RESPONSIVE
-    // -----------------------------------
+    document.addEventListener(
+        "keyup",
+        function (event) {
 
-    window.addEventListener(
-        'resize',
-        onWindowResize
+            const key = event.key.toLowerCase();
+
+            if (key === "w") keys.w = false;
+            if (key === "a") keys.a = false;
+            if (key === "s") keys.s = false;
+            if (key === "d") keys.d = false;
+
+            keys.shift = false;
+        }
     );
 }
+
+// ------------------------------------------------
+// RESPONSIVE
+// ------------------------------------------------
 
 function onWindowResize() {
 
@@ -270,6 +382,10 @@ function onWindowResize() {
     );
 }
 
+// ------------------------------------------------
+// ANIMATE
+// ------------------------------------------------
+
 function animate() {
 
     requestAnimationFrame(animate);
@@ -278,6 +394,82 @@ function animate() {
 
     if (mixer) {
         mixer.update(delta);
+    }
+
+    if (character) {
+
+        let moving = false;
+        let speed = keys.shift ? runSpeed : moveSpeed;
+
+        // ADELANTE
+        if (keys.w) {
+            character.translateZ(
+                speed * delta * 50
+            );
+            moving = true;
+        }
+
+        // ATRAS
+        if (keys.s) {
+            character.translateZ(
+                -speed * delta * 50
+            );
+            moving = true;
+        }
+
+        // GIRAR IZQUIERDA
+        if (keys.a) {
+            character.rotation.y += rotateSpeed;
+        }
+
+        // GIRAR DERECHA
+        if (keys.d) {
+            character.rotation.y -= rotateSpeed;
+        }
+
+        // CAMBIO DE ANIMACION
+        if (moving) {
+
+            if (keys.shift && runAction) {
+                switchAnimation(runAction);
+            }
+            else if (walkAction) {
+                switchAnimation(walkAction);
+            }
+
+        } else {
+
+            if (idleAction) {
+                switchAnimation(idleAction);
+            }
+        }
+
+        // ------------------------------------------------
+        // CAMARA SIGUIENDO AL PERSONAJE
+        // ------------------------------------------------
+
+        const offset = new THREE.Vector3(
+            0,     // izquierda / derecha
+            80,    // altura
+            -150   // distancia atrás
+        );
+
+        // rota junto con el personaje
+        offset.applyQuaternion(
+            character.quaternion
+        );
+
+        // nueva posición de cámara
+        camera.position.copy(
+            character.position.clone().add(offset)
+        );
+
+        // mirar al personaje
+        camera.lookAt(
+            character.position.x,
+            character.position.y + 40,
+            character.position.z
+        );
     }
 
     renderer.render(scene, camera);
