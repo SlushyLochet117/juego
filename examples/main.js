@@ -5,6 +5,7 @@ import { loadHouse } from './house.js';
 import { loadCharacter, updateCharacter } from './player.js';
 import { setupKeyboard } from './keyboard.js';
 import { updateCamera } from './camara.js';
+import { setupCollisions } from './collision.js';
 
 export let scene, camera, renderer;
 
@@ -18,7 +19,7 @@ function init() {
     // ESCENA
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x888888);
-    scene.fog = new THREE.Fog(0xcccccc, 30, 300);
+   // scene.fog = new THREE.Fog(0xcccccc, 30, 400);
 
     // CAMARA
     camera = new THREE.PerspectiveCamera(
@@ -61,6 +62,7 @@ function init() {
     // FUNCIONES
     setupLights(scene);
     loadHouse(scene);
+    setupCollisions(scene);
     loadCharacter(scene);
     setupKeyboard();
 
