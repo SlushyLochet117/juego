@@ -1,100 +1,56 @@
-// lights.js
-
 import * as THREE from 'three';
 
 export function setupLights(scene) {
 
     // -----------------------------------
-    // LUZ AMBIENTAL GENERAL
+    // 🌑 LUZ AMBIENTAL (casi negra)
     // -----------------------------------
-
     const ambientLight = new THREE.AmbientLight(
-        0xffffff,
-        1.2
+        0x222233,
+        0.4 // 🔥 súper bajo
     );
-
     scene.add(ambientLight);
 
     // -----------------------------------
-    // LUZ HEMISFERICA (tipo ambiente)
+    // 🌫 LUZ HEMISFERICA (mínima)
     // -----------------------------------
-
     const hemiLight = new THREE.HemisphereLight(
-        0xffffff, // cielo
-        0x444444, // suelo
-        2
+        0x222244,
+        0x000000,
+        0.1 // 🔥 casi nada
     );
-
-    hemiLight.position.set(
-        0,
-        200,
-        0
-    );
-
+    hemiLight.position.set(0, 200, 0);
     scene.add(hemiLight);
 
     // -----------------------------------
-    // LUZ PRINCIPAL (tipo luna)
+    // 🌙 LUZ LUNA (direccional tenue)
     // -----------------------------------
-
     const moonLight = new THREE.DirectionalLight(
-        0xffffff,
-        3
+        0x8899ff,
+        0.6
     );
 
-    moonLight.position.set(
-        100,
-        300,
-        100
-    );
-
+    moonLight.position.set(100, 300, 100);
     moonLight.castShadow = true;
 
-    moonLight.shadow.mapSize.width = 2048;
-    moonLight.shadow.mapSize.height = 2048;
-
-    moonLight.shadow.camera.top = 300;
-    moonLight.shadow.camera.bottom = -300;
-    moonLight.shadow.camera.left = -300;
-    moonLight.shadow.camera.right = 300;
+    // sombras más suaves
+    moonLight.shadow.mapSize.width = 1024;
+    moonLight.shadow.mapSize.height = 1024;
 
     scene.add(moonLight);
 
     // -----------------------------------
-    // LUZ SUPERIOR (techo / mansión)
+    // 💡 LUZ LOCAL MUY SUAVE (opcional)
+    // evita negro total en interiores
     // -----------------------------------
-
-    const topLight = new THREE.DirectionalLight(
-        0xffffff,
-        2
+    const dimLight = new THREE.PointLight(
+        0x6666aa,
+        0.2,
+        400
     );
 
-    topLight.position.set(
-        0,
-        500,
-        0
-    );
+    dimLight.position.set(0, 150, 0);
+    scene.add(dimLight);
 
-    topLight.castShadow = true;
-
-    scene.add(topLight);
-
-    // -----------------------------------
-    // LUZ DE RELLENO
-    // -----------------------------------
-
-    const fillLight = new THREE.DirectionalLight(
-        0xffffff,
-        1
-    );
-
-    fillLight.position.set(
-        -100,
-        100,
-        -100
-    );
-
-    scene.add(fillLight);
-
-    console.log("Luces cargadas correctamente");
+    console.log("🌑 Luces modo terror PRO activadas");
 }

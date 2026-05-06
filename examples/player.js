@@ -1,238 +1,260 @@
 import * as THREE from 'three';
-import { FBXLoader } from './jsm/loaders/FBXLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { keys } from './keyboard.js';
 import { checkCollision } from './collision.js';
 
-let character;
-let mixer;
+let characterContainer, mixer, characterFBX;
 
-// acciones
-let idleAction;
-let walkAction;
-let runAction;
-let pickAction;
+let idleAction, walkAction, runAction, pickupAction;
 let activeAction;
 
-// velocidades
-const moveSpeed = 1.0;
-const runSpeed = 2.0;
-const rotateSpeed = 0.05;
+let isPicking = false;
 
-export function loadCharacter(scene) {
+// 🔊 AUDIO
+let listener;
+let sounds = {};
+
+// 🎒 INVENTARIO
+const foundItems = {
+    MESA: false,
+    CARTA: false,
+    LLAVE: false
+};
+
+export function loadCharacter(scene, house) {
 
     const loader = new FBXLoader();
+    const path = './examples/models/personaje/';
 
-    loader.load(
-        'examples/models/personaje/idle.fbx',
+    characterContainer = new THREE.Group();
 
-        function (fbx) {
+    loader.load(path + 'idle.fbx', (fbx) => {
 
-            character = fbx;
+        characterFBX = fbx;
+        characterFBX.scale.set(0.2, 0.2, 0.2);
+        characterFBX.rotation.y = Math.PI;
 
-            character.scale.set(
-                0.2,
-                0.2,
-                0.2
-            );
-
-            character.position.set(
-                0,
-                0,
-                5
-            );
-
-            character.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
- scene.add(character);
-
-            // mixer principal
-            mixer = new THREE.AnimationMixer(character);
-
-            // IDLE
-            if (fbx.animations.length > 0) {
-                idleAction = mixer.clipAction(
-                    fbx.animations[0]
-                );
-
-                idleAction.play();
-                activeAction = idleAction;
+        characterFBX.traverse(c => {
+            if (c.isMesh) {
+                c.castShadow = true;
+                c.material = new THREE.MeshStandardMaterial({
+            map: c.material.map || null,
+            color: 0xffffff,
+            roughness: 0.7,
+            metalness: 0.1
+        });
             }
+        });
 
-            // -----------------------------------
-            // CARGAR WALK
-            // -----------------------------------
+        characterContainer.add(characterFBX);
 
-            loader.load(
-                'examples/models/personaje/Injured Walking.fbx',
+        // 📍 POSICIÓN
+        const houseBox = new THREE.Box3().setFromObject(house);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
 
-                function (walkAnim) {
+        houseBox.getSize(size);
+        houseBox.getCenter(center);
 
-                    walkAction = mixer.clipAction(
-                        walkAnim.animations[0]
-                    );
+        characterContainer.position.set(
+            center.x + size.x / 2 + 120,
+            0,
+            center.z
+        );
 
-                    // -----------------------------------
-                    // CARGAR RUN
-                    // -----------------------------------
+        scene.add(characterContainer);
 
-                    loader.load(
-                        'examples/models/personaje/Slow Run.fbx',
+        // 🎬 ANIMACIONES
+        mixer = new THREE.AnimationMixer(characterFBX);
 
-                        function (runAnim) {
+        idleAction = mixer.clipAction(fbx.animations[0]);
+        idleAction.play();
+        activeAction = idleAction;
 
-                            runAction = mixer.clipAction(
-                                runAnim.animations[0]
-                            );
+        loader.load(path + 'Injured Walking.fbx', a => {
+            if (a.animations.length > 0)
+                walkAction = mixer.clipAction(a.animations[0]);
+        });
 
-                            // -----------------------------------
-                            // CARGAR PICK ACTION
-                            // -----------------------------------
+        loader.load(path + 'Slow Run.fbx', a => {
+            if (a.animations.length > 0)
+                runAction = mixer.clipAction(a.animations[0]);
+        });
 
-                            loader.load(
-                                'examples/models/personaje/Picking Up.fbx',
+        loader.load(path + 'Picking Up.fbx', a => {
+            if (a.animations.length > 0) {
+                pickupAction = mixer.clipAction(a.animations[0]);
+                pickupAction.setLoop(THREE.LoopOnce);
+                pickupAction.clampWhenFinished = true;
+            }
+        });
 
-                                function (pickAnim) {
+        // 🔊 AUDIO
+        listener = new THREE.AudioListener();
+        characterContainer.add(listener);
 
-                                    pickAction = mixer.clipAction(
-                                        pickAnim.animations[0]
-                                    );
+        const audioLoader = new THREE.AudioLoader();
 
-                                    console.log(
-                                        "Todas las animaciones cargadas correctamente"
-                                    );
-                                }
-                            );
-                        }
-                    );
-                }
-            );
+        const loadSound = (name, path) => {
+            const sound = new THREE.Audio(listener);
+            audioLoader.load(path, (buffer) => {
+                sound.setBuffer(buffer);
+                sound.setVolume(0.7);
+            });
+            sounds[name] = sound;
+        };
 
-            console.log("Personaje cargado");
-        },
+        loadSound("mesa", './examples/sounds/table.mp3');
+        loadSound("carta", './examples/sounds/paper.mp3');
+        loadSound("llave", './examples/sounds/key.mp3');
+        loadSound("puerta", './examples/sounds/door_open.mp3');
 
-        undefined,
-
-        function (error) {
-            console.error(
-                "Error cargando personaje:",
-                error
-            );
-        }
-    );
+    });
 }
 
-// --------------------------------------------------
-// CAMBIAR ANIMACIÓN SUAVEMENTE
-// --------------------------------------------------
-
+// 🎬 CAMBIO ANIMACIÓN
 function switchAnimation(newAction) {
+    if (!newAction || activeAction === newAction) return;
 
-    if (!newAction) return;
-    if (activeAction === newAction) return;
-
-    activeAction.fadeOut(0.3);
-
-    newAction
-        .reset()
-        .fadeIn(0.3)
-        .play();
-
+    activeAction.fadeOut(0.2);
+    newAction.reset().fadeIn(0.2).play();
     activeAction = newAction;
 }
 
-// --------------------------------------------------
-// ACTUALIZAR PERSONAJE
-// --------------------------------------------------
-
+// 🎮 UPDATE
 export function updateCharacter(delta) {
 
-    if (!character) return;
+    if (!characterContainer) return;
 
-    const previousPosition = character.position.clone();
+    const prevPos = characterContainer.position.clone();
 
-    // actualizar mixer
-    if (mixer) {
-        mixer.update(delta);
-    }
+    if (mixer) mixer.update(delta);
+
+    if (isPicking) return;
 
     let moving = false;
-    let speed = keys.shift
-        ? runSpeed
-        : moveSpeed;
+    let speed = keys.shift ? 4.0 : 1.5;
 
-    // -----------------------------------
-    // MOVIMIENTO
-    // -----------------------------------
+    if (keys.w) { characterContainer.translateZ(-speed * delta * 50); moving = true; }
+    if (keys.s) { characterContainer.translateZ(speed * delta * 50); moving = true; }
+    if (keys.a) characterContainer.rotation.y += 0.05;
+    if (keys.d) characterContainer.rotation.y -= 0.05;
 
-    // avanzar
-    if (keys.w) {
-        character.translateZ(
-            speed * delta * 50
-        );
-        moving = true;
+    if (checkCollision(characterContainer)) {
+        characterContainer.position.copy(prevPos);
     }
 
-    // retroceder
-    if (keys.s) {
-        character.translateZ(
-            -speed * delta * 50
-        );
-        moving = true;
+    // 🔥 INTERACTUAR
+    if (keys.x) {
+
+        const objects = characterContainer.parent.children;
+
+        for (let obj of objects) {
+
+            if (!obj.name) continue;
+
+            const distance = characterContainer.position.distanceTo(obj.position);
+
+            // -----------------------------------
+            // 🎒 OBJETOS
+            // -----------------------------------
+            if (["MESA", "CARTA", "LLAVE"].includes(obj.name)) {
+
+                if (distance < 80 && !foundItems[obj.name]) {
+
+                    foundItems[obj.name] = true;
+
+                    // 🔊 SONIDO
+                    sounds[obj.name.toLowerCase()]?.play();
+
+                    isPicking = true;
+                    switchAnimation(pickupAction);
+
+                    setTimeout(() => {
+                        obj.visible = false;
+                        isPicking = false;
+                        switchAnimation(idleAction);
+                    }, 1200);
+
+                    updateUI();
+                }
+            }
+
+            // -----------------------------------
+            // 🚪 PUERTAS (MULTIPLES)
+            // -----------------------------------
+            if (obj.name === "PUERTA") {
+
+                const door = obj; // 🔥 este ya es el pivot desde house.js
+
+                if (distance < 120) {
+
+                    if (!foundItems.LLAVE) {
+                        console.log("🔒 Necesitas la llave");
+                        continue;
+                    }
+
+                    if (!door.userData.open) {
+
+                        sounds.puerta?.play();
+
+                        let rot = door.rotation.y;
+                        const target = rot + Math.PI / 3;
+
+                        const interval = setInterval(() => {
+
+                            rot += 0.03;
+                            door.rotation.y = rot;
+
+                            if (rot >= target) {
+                                clearInterval(interval);
+                            }
+
+                        }, 16);
+
+                        door.userData.open = true;
+                    }
+                }
+            }
+        }
+
+        keys.x = false;
     }
 
-    // girar izquierda
-    if (keys.a) {
-        character.rotation.y += rotateSpeed;
+    // 🎬 ANIMACIONES
+    if (!isPicking) {
+        if (moving) {
+            if (keys.shift && runAction) switchAnimation(runAction);
+            else if (walkAction) switchAnimation(walkAction);
+        } else {
+            switchAnimation(idleAction);
+        }
     }
-
-    // girar derecha
-    if (keys.d) {
-        character.rotation.y -= rotateSpeed;
-    }
-    if (checkCollision(character)) {
-    character.position.copy(previousPosition);
 }
 
-    // -----------------------------------
-    // CAMBIO DE ANIMACIÓN
-    // -----------------------------------
+// 🎯 UI
+function updateUI() {
 
-    // acción especial con E
-    if (keys.e && pickAction) {
+    const ui = document.getElementById("inventory");
+    if (!ui) return;
 
-        switchAnimation(pickAction);
-        return;
-    }
-
-    // correr
-    if (moving && keys.shift && runAction) {
-
-        switchAnimation(runAction);
-        return;
-    }
-
-    // caminar
-    if (moving && walkAction) {
-
-        switchAnimation(walkAction);
-        return;
-    }
-
-    // idle
-    if (idleAction) {
-
-        switchAnimation(idleAction);
-    }
+    ui.innerHTML = `
+        <h3>🎒 Objetivos</h3>
+        <p style="color:${foundItems.MESA ? 'lime' : 'red'}">
+            ${foundItems.MESA ? '✔' : '✖'} Revisar mesa
+        </p>
+        <p style="color:${foundItems.CARTA ? 'lime' : 'red'}">
+            ${foundItems.CARTA ? '✔' : '✖'} Encontrar carta
+        </p>
+        <p style="color:${foundItems.LLAVE ? 'lime' : 'red'}">
+            ${foundItems.LLAVE ? '✔' : '✖'} Obtener llave
+        </p>
+    `;
 }
 
-// --------------------------------------------------
-// OBTENER PERSONAJE (para cámara)
-// --------------------------------------------------
-
+// 🎥 CÁMARA
 export function getCharacter() {
-    return character;
+    return characterContainer;
 }
+
+setTimeout(updateUI, 1000);
