@@ -47,8 +47,6 @@ function init() {
     // 🌲 LOADER (🔥 CORREGIDO)
     const gltfLoader = new GLTFLoader();
 
-
-
     // 🌲 BOSQUE
     gltfLoader.load('./examples/models/casa/bosque.glb', (gltf) => {
 

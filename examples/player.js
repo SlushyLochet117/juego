@@ -14,6 +14,7 @@ let isPicking = false;
 let listener;
 let sounds = {};
 
+let gameFinished = false;
 // 🎒 INVENTARIO
 const foundItems = {
     MESA: false,
@@ -108,6 +109,7 @@ export function loadCharacter(scene, house) {
         loadSound("carta", './examples/sounds/paper.mp3');
         loadSound("llave", './examples/sounds/key.mp3');
         loadSound("puerta", './examples/sounds/door_open.mp3');
+        loadSound("scream", './examples/sounds/scream.mp3');
 
     });
 }
@@ -235,6 +237,15 @@ export function updateCharacter(delta) {
 // 🎯 UI
 function updateUI() {
 
+    // 💀 FINAL DEL JUEGO
+if (
+    foundItems.MESA &&
+    foundItems.CARTA &&
+    foundItems.LLAVE
+) {
+    triggerEnding();
+}
+
     const ui = document.getElementById("inventory");
     if (!ui) return;
 
@@ -258,3 +269,53 @@ export function getCharacter() {
 }
 
 setTimeout(updateUI, 1000);
+
+
+
+function triggerEnding() {
+
+    if (gameFinished) return;
+    gameFinished = true;
+
+    console.log("💀 FINAL ACTIVADO");
+
+    // 🔊 SONIDO DE SCREAM
+    if (sounds.scream && !sounds.scream.isPlaying) {
+        sounds.scream.play();
+    }
+
+    // 🖤 PANTALLA NEGRA
+    const fade = document.createElement("div");
+    fade.style.position = "fixed";
+    fade.style.top = 0;
+    fade.style.left = 0;
+    fade.style.width = "100%";
+    fade.style.height = "100%";
+    fade.style.background = "black";
+    fade.style.opacity = 0;
+    fade.style.transition = "opacity 2s";
+
+    document.body.appendChild(fade);
+
+    setTimeout(() => {
+        fade.style.opacity = 1;
+    }, 100);
+
+    // 💀 TEXTO FINAL
+    setTimeout(() => {
+
+        const text = document.createElement("h1");
+        text.innerText = "NO DEBISTE ENTRAR...";
+        text.style.position = "fixed";
+        text.style.top = "50%";
+        text.style.left = "50%";
+        text.style.transform = "translate(-50%, -50%)";
+        text.style.color = "red";
+        text.style.fontSize = "50px";
+        text.style.fontFamily = "Arial";
+        text.style.textShadow = "0 0 20px red";
+
+        document.body.appendChild(text);
+
+    }, 2500);
+}
