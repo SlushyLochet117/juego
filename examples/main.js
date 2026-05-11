@@ -11,6 +11,8 @@ import { setupCollisions } from './collision.js';
 import { setupHorror, updateHorror } from './horrorEvents.js';
 import { setupFlashlight, updateFlashlight } from './flashlight.js';
 
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
 export let scene, camera, renderer;
 const clock = new THREE.Clock();
 
@@ -35,8 +37,10 @@ function init() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.xr.enabled = true;
 
     document.body.appendChild(renderer.domElement);
+    document.body.appendChild(VRButton.createButton(renderer));
 
     // 💡 LUCES
     setupLights(scene);
@@ -179,8 +183,9 @@ function onResize() {
 }
 
 // -----------------------------------
+renderer.setAnimationLoop(animate);
+
 function animate() {
-    requestAnimationFrame(animate);
 
     const delta = clock.getDelta();
 
@@ -188,11 +193,12 @@ function animate() {
     updateCamera(camera);
 
     const character = getCharacter();
+
     if (character) {
         updateHorror(character, scene);
     }
 
-    updateFlashlight(camera); // 🔥 CORREGIDO
+    updateFlashlight();
 
     renderer.render(scene, camera);
 }
