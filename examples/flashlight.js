@@ -21,7 +21,7 @@ export function setupFlashlight(scene, camera) {
 
     flashlight.target.position.set(0, 0, -10);
 
-    camera.add(flashlight);
+    controller2.add(flashlight);
     camera.add(flashlight.target);
 
     scene.add(camera);
