@@ -54,12 +54,6 @@ export function updateHorror(character, scene) {
 
             // 👻 SOMBRA
             spawnShadow(scene, character);
-
-            // 🚪 CERRAR PUERTAS
-            closeDoors(scene);
-
-            // 🔦 PARPADEO LINTERNA
-            flickerFlashlight();
         }
     });
 }
