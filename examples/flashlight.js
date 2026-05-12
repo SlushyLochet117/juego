@@ -12,14 +12,21 @@ export function setupFlashlight(scene, controller) {
 
     flashlight = new THREE.SpotLight(
         0xffffff,
-        20,
-        1000,
-        Math.PI / 7,
+        80,
+        1500,
+        Math.PI / 9,
         0.4,
         1
     );
 
     flashlight.castShadow = true;
+
+    // 🔥 sombras HD
+    flashlight.shadow.mapSize.width = 2048;
+    flashlight.shadow.mapSize.height = 2048;
+
+    // 🔥 evita errores visuales
+    flashlight.shadow.bias = -0.0001;
 
     // 📍 posición relativa al control VR
     flashlight.position.set(0, 0, 0);

@@ -40,6 +40,16 @@ import {
     updateMonster
 } from './monster.js';
 
+import {
+    setupSanity,
+    updateSanity
+}
+from './sanity.js';
+
+import { isFlashlightOn }
+from './flashlight.js';
+
+
 // -----------------------------------
 
 export let scene;
@@ -86,6 +96,12 @@ function init() {
     );
 
     renderer.shadowMap.enabled = true;
+
+    // 🔥 iluminación cinematográfica
+    renderer.toneMapping =
+    THREE.ACESFilmicToneMapping;
+
+renderer.toneMappingExposure = 0.5;
 
     // 🥽 VR
     renderer.xr.enabled = true;
@@ -219,6 +235,8 @@ function init() {
 
     // 👹 MONSTRUO
     loadMonster(scene, camera);
+
+    setupSanity(camera);
 
     // -----------------------------------
     // 🌙 HDR
@@ -445,6 +463,13 @@ function animate() {
         updateMonster(
             character,
             camera
+        );
+
+        updateSanity(
+             delta,
+             character,
+             null,
+             isFlashlightOn()
         );
     }
 

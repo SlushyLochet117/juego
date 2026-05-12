@@ -213,7 +213,7 @@ export function updateMonster(
                 .normalize();
 
         const speed =
-            0.9 * aggression;
+            0.25 * aggression;
 
         monster.position.add(
             dir.multiplyScalar(speed)
@@ -235,7 +235,7 @@ export function updateMonster(
                 .normalize();
 
         monster.position.add(
-            dir.multiplyScalar(0.25)
+            dir.multiplyScalar(0.35)
         );
     }
 
@@ -337,7 +337,7 @@ export function updateMonster(
     // -----------------------------------
 
     if (
-        dist < 35 &&
+        dist < 20 &&
         !scareCooldown
     ) {
 

@@ -6,8 +6,8 @@ export function setupLights(scene) {
     // 🌑 LUZ AMBIENTAL (casi negra)
     // -----------------------------------
     const ambientLight = new THREE.AmbientLight(
-        0x222233,
-        0.4 // 🔥 súper bajo
+         0xffffff,
+         0.08 // 🔥 súper bajo
     );
     scene.add(ambientLight);
 
