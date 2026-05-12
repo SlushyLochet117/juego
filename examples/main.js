@@ -183,7 +183,7 @@ renderer.toneMappingExposure = 0.5;
     console.log('🖐 Controladores listos');
 
     // 🔦 LINTERNA
-    setupFlashlight(scene, controller2);
+    setupFlashlight(scene,camera,controller2);
 
     // -----------------------------------
     // 🌲 BOSQUE
@@ -474,7 +474,7 @@ function animate() {
     }
 
     // 🔦 LINTERNA
-    updateFlashlight();
+    updateFlashlight(renderer);
 
     // 🖥️ RENDER
     renderer.render(

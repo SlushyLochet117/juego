@@ -3,20 +3,27 @@ import * as THREE from 'three';
 import { GLTFLoader }
 from 'three/addons/loaders/GLTFLoader.js';
 
-import { isFlashlightOn }
+import {
+    isFlashlightOn,
+    getFlashlightDirection,
+    getFlashlightPosition
+}
 from './flashlight.js';
 
 // -----------------------------------
 let monster;
 let monsterSound;
 
-// estados IA
+// IA
 let chaseMode = false;
-let searchMode = false;
-
 let scareCooldown = false;
 
-// puntos patrulla
+let stunned = false;
+let stunTimer = 0;
+
+let aggression = 1;
+
+// patrulla
 const patrolPoints = [
 
     new THREE.Vector3(-300, 0, -900),
@@ -28,9 +35,8 @@ const patrolPoints = [
 
 let currentPatrol = 0;
 
-// timers
+// teleport
 let lastTeleport = 0;
-let aggression = 1;
 
 // -----------------------------------
 export function loadMonster(scene, camera) {
@@ -56,7 +62,7 @@ export function loadMonster(scene, camera) {
 
             monsterSound.setLoop(true);
 
-            monsterSound.setVolume(2);
+            monsterSound.setVolume(1.5);
 
             monsterSound.setRefDistance(40);
 
@@ -109,7 +115,7 @@ export function loadMonster(scene, camera) {
 
             scene.add(monster);
 
-            console.log('👹 IA monstruo lista');
+            console.log('👹 Monstruo listo');
         }
     );
 }
@@ -136,38 +142,124 @@ export function updateMonster(
         );
 
     // -----------------------------------
-    // 🔦 DETECCIÓN LINTERNA
+    // 🔦 DETECCIÓN DE LINTERNA
     // -----------------------------------
 
-    const flashlightBonus =
-        isFlashlightOn()
-            ? 250
-            : 0;
+    let flashlightHit = false;
+
+    if (isFlashlightOn()) {
+
+        const lightPos =
+            getFlashlightPosition();
+
+        const lightDir =
+            getFlashlightDirection();
+
+        if (lightPos && lightDir) {
+
+            const toMonster =
+                new THREE.Vector3()
+                    .subVectors(
+                        monster.position,
+                        lightPos
+                    )
+                    .normalize();
+
+            const angle =
+                lightDir.dot(toMonster);
+
+            const lightDistance =
+                lightPos.distanceTo(
+                    monster.position
+                );
+
+            // 🔥 luz pegando directo
+            if (
+                angle > 0.90 &&
+                lightDistance < 350
+            ) {
+
+                flashlightHit = true;
+            }
+        }
+    }
+
+    // -----------------------------------
+    // 💥 STUN CON LINTERNA
+    // -----------------------------------
+
+    if (
+        flashlightHit &&
+        !stunned
+    ) {
+
+        stunned = true;
+
+        stunTimer = performance.now();
+
+        chaseMode = false;
+
+        console.log('💡 Monstruo cegado');
+    }
+
+    // salir de stun
+    if (stunned) {
+
+        const elapsed =
+            performance.now() - stunTimer;
+
+        // retroceder
+        const escapeDir =
+            new THREE.Vector3()
+                .subVectors(
+                    monster.position,
+                    character.position
+                )
+                .normalize();
+
+        monster.position.add(
+            escapeDir.multiplyScalar(1.5)
+        );
+
+        // efecto visual
+        monster.visible =
+            Math.sin(performance.now() * 0.02) > 0;
+
+        if (monsterSound) {
+
+            monsterSound.setVolume(0.3);
+        }
+
+        // terminar stun
+        if (elapsed > 2500) {
+
+            stunned = false;
+
+            monster.visible = true;
+
+            if (monsterSound) {
+
+                monsterSound.setVolume(1.5);
+            }
+        }
+
+        return;
+    }
+
+    // -----------------------------------
+    // 👁️ DETECCIÓN
+    // -----------------------------------
 
     const detectionRange =
-        250 + flashlightBonus;
-
-    // -----------------------------------
-    // 👁️ DETECTAR PLAYER
-    // -----------------------------------
+        isFlashlightOn()
+            ? 500
+            : 250;
 
     if (dist < detectionRange) {
 
         chaseMode = true;
-        searchMode = false;
 
-    } else {
-
-        if (chaseMode) {
-
-            searchMode = true;
-
-            setTimeout(() => {
-
-                searchMode = false;
-
-            }, 6000);
-        }
+    } else if (dist > 600) {
 
         chaseMode = false;
     }
@@ -179,7 +271,10 @@ export function updateMonster(
     monster.visible =
         dist < 700;
 
+    // -----------------------------------
     // 🔊 AUDIO
+    // -----------------------------------
+
     if (
         monster.visible &&
         monsterSound &&
@@ -199,7 +294,7 @@ export function updateMonster(
     }
 
     // -----------------------------------
-    // 🏃 CHASE MODE
+    // 🏃 PERSECUCIÓN
     // -----------------------------------
 
     if (chaseMode) {
@@ -212,30 +307,12 @@ export function updateMonster(
                 )
                 .normalize();
 
+        // 🔥 velocidad más balanceada
         const speed =
-            0.25 * aggression;
+            0.12 * aggression;
 
         monster.position.add(
             dir.multiplyScalar(speed)
-        );
-    }
-
-    // -----------------------------------
-    // 🔍 SEARCH MODE
-    // -----------------------------------
-
-    else if (searchMode) {
-
-        const dir =
-            new THREE.Vector3()
-                .subVectors(
-                    character.position,
-                    monster.position
-                )
-                .normalize();
-
-        monster.position.add(
-            dir.multiplyScalar(0.35)
         );
     }
 
@@ -272,13 +349,13 @@ export function updateMonster(
             dir.normalize();
 
             monster.position.add(
-                dir.multiplyScalar(0.2)
+                dir.multiplyScalar(0.08)
             );
         }
     }
 
     // -----------------------------------
-    // 👀 MIRAR JUGADOR
+    // 👀 MIRAR PLAYER
     // -----------------------------------
 
     monster.lookAt(
@@ -286,23 +363,25 @@ export function updateMonster(
     );
 
     // -----------------------------------
-    // 💀 TELEPORT RANDOM
+    // 👁️ TELEPORT
     // -----------------------------------
 
     const now = performance.now();
 
     if (
-        now - lastTeleport > 20000 &&
+        now - lastTeleport > 25000 &&
         dist > 500
     ) {
 
         lastTeleport = now;
 
         const angle =
-            Math.random() * Math.PI * 2;
+            Math.random() *
+            Math.PI * 2;
 
         const radius =
-            250 + Math.random() * 200;
+            250 +
+            Math.random() * 150;
 
         monster.position.set(
 
@@ -321,15 +400,15 @@ export function updateMonster(
     }
 
     // -----------------------------------
-    // 😈 AGRESIVIDAD DINÁMICA
+    // 😈 AGRESIVIDAD
     // -----------------------------------
 
-    aggression += 0.00005;
+    aggression += 0.00001;
 
     aggression =
         Math.min(
             aggression,
-            3
+            2
         );
 
     // -----------------------------------
@@ -337,7 +416,7 @@ export function updateMonster(
     // -----------------------------------
 
     if (
-        dist < 20 &&
+        dist < 18 &&
         !scareCooldown
     ) {
 
