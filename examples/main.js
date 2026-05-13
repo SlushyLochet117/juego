@@ -440,7 +440,7 @@ function animate() {
     updateCharacter(delta);
 
     // VR
-   function updateVRMovement(delta) {
+    function updateVRMovement(delta) {
 
     const session =
         renderer.xr.getSession();
@@ -452,76 +452,97 @@ function animate() {
 
     if (!character) return;
 
+    // velocidad
+    const moveSpeed = 120 * delta;
+    const rotateSpeed = 2.5 * delta;
+
+    // dirección cámara
+    const forward =
+        new THREE.Vector3();
+
+    camera.getWorldDirection(forward);
+
+    forward.y = 0;
+    forward.normalize();
+
+    // derecha
+    const right =
+        new THREE.Vector3();
+
+    right.crossVectors(
+        forward,
+        new THREE.Vector3(0, 1, 0)
+    );
+
+    right.normalize();
+
+    // -----------------------------------
+    // 🎮 INPUTS
+    // -----------------------------------
+
     for (const source of session.inputSources) {
 
         if (!source.gamepad) continue;
 
-        // 🎮 joystick izquierdo
+        const gamepad =
+            source.gamepad;
+
         const axes =
-            source.gamepad.axes;
+            gamepad.axes;
 
-        const x =
-            axes[2] || 0;
-
-        const y =
-            axes[3] || 0;
-
-        // zona muerta
-        if (
-            Math.abs(x) < 0.15 &&
-            Math.abs(y) < 0.15
-        ) continue;
-
-        // velocidad
-        const speed =
-            140 * delta;
+        const buttons =
+            gamepad.buttons;
 
         // -----------------------------------
-        // 🎥 DIRECCIÓN DE CABEZA
+        // 🕹 JOYSTICK
         // -----------------------------------
 
-        const forward =
-            new THREE.Vector3();
+        // Quest normalmente:
+        // left stick = 2 y 3
+        // fallback = 0 y 1
 
-        camera.getWorldDirection(
-            forward
-        );
+        let x =
+            axes[2] ?? axes[0] ?? 0;
 
-        forward.y = 0;
-        forward.normalize();
+        let y =
+            axes[3] ?? axes[1] ?? 0;
 
-        // lateral
-        const right =
-            new THREE.Vector3();
+        // deadzone
+        if (Math.abs(x) < 0.15)
+            x = 0;
 
-        right.crossVectors(
-            forward,
-            new THREE.Vector3(0, 1, 0)
-        );
-
-        right.normalize();
+        if (Math.abs(y) < 0.15)
+            y = 0;
 
         // -----------------------------------
         // 🚶 MOVIMIENTO
         // -----------------------------------
 
-        character.position.add(
+        if (y !== 0) {
 
-            forward
-                .clone()
-                .multiplyScalar(
-                    -y * speed
-                )
-        );
+            character.position.add(
 
-        character.position.add(
+                forward.clone()
+                    .multiplyScalar(
+                        -y * moveSpeed
+                    )
+            );
+        }
 
-            right
-                .clone()
-                .multiplyScalar(
-                    x * speed
-                )
-        );
+        // -----------------------------------
+        // ↔ STRAFE
+        // -----------------------------------
+
+        if (x !== 0) {
+
+            character.position.add(
+
+                right.clone()
+                    .multiplyScalar(
+                        x * moveSpeed
+                    )
+            );
+        }
 
         // -----------------------------------
         // 👤 ROTAR CUERPO
@@ -537,8 +558,39 @@ function animate() {
             THREE.MathUtils.lerp(
                 character.rotation.y,
                 targetRotation,
-                0.08
+                0.1
             );
+
+        // -----------------------------------
+        // ✋ BOTÓN X / A
+        // -----------------------------------
+
+        // botón principal
+        // depende mando:
+        // X/A suele ser index 4 o 5
+
+        const interactPressed =
+
+            buttons[4]?.pressed ||
+            buttons[5]?.pressed ||
+            buttons[0]?.pressed;
+
+        if (interactPressed) {
+
+            interactVR();
+        }
+
+        // -----------------------------------
+        // 🔦 GATILLO
+        // -----------------------------------
+
+        const triggerPressed =
+            buttons[0]?.pressed;
+
+        if (triggerPressed) {
+
+            toggleFlashlightVR();
+        }
     }
 }
 
