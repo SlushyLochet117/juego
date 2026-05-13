@@ -546,14 +546,19 @@ function updateVRMovement(delta) {
 
     if (!character) return;
 
-    const moveSpeed =
-        120 * delta;
+    // 🔥 CAMARA REAL DEL QUEST
+    const xrCamera =
+        renderer.xr.getCamera(camera);
 
-    // dirección cámara
+    // velocidad
+    const moveSpeed =
+        140 * delta;
+
+    // dirección frente
     const forward =
         new THREE.Vector3();
 
-    camera.getWorldDirection(
+    xrCamera.getWorldDirection(
         forward
     );
 
@@ -561,24 +566,21 @@ function updateVRMovement(delta) {
 
     forward.normalize();
 
-    // lateral
+    // derecha
     const right =
         new THREE.Vector3();
 
     right.crossVectors(
-
         forward,
-
-        new THREE.Vector3(
-            0,
-            1,
-            0
-        )
+        new THREE.Vector3(0, 1, 0)
     );
 
     right.normalize();
 
-    // 🎮 INPUTS
+    // -----------------------------------
+    // 🎮 CONTROLES
+    // -----------------------------------
+
     for (const source of session.inputSources) {
 
         if (!source.gamepad)
@@ -586,6 +588,9 @@ function updateVRMovement(delta) {
 
         const axes =
             source.gamepad.axes;
+
+        // Quest:
+        // stick izquierdo suele ser 2 y 3
 
         let x =
             axes[2] ??
@@ -604,7 +609,10 @@ function updateVRMovement(delta) {
         if (Math.abs(y) < 0.15)
             y = 0;
 
-        // 🚶 movimiento
+        // -----------------------------------
+        // 🚶 AVANZAR
+        // -----------------------------------
+
         if (y !== 0) {
 
             character.position.add(
@@ -616,7 +624,10 @@ function updateVRMovement(delta) {
             );
         }
 
-        // ↔ lateral
+        // -----------------------------------
+        // ↔ STRAFE
+        // -----------------------------------
+
         if (x !== 0) {
 
             character.position.add(
@@ -628,9 +639,11 @@ function updateVRMovement(delta) {
             );
         }
 
-        // 👤 rotación cuerpo
-        const targetRotation =
+        // -----------------------------------
+        // 👤 ROTAR PLAYER
+        // -----------------------------------
 
+        const targetRotation =
             Math.atan2(
                 forward.x,
                 forward.z
@@ -638,11 +651,8 @@ function updateVRMovement(delta) {
 
         character.rotation.y =
             THREE.MathUtils.lerp(
-
                 character.rotation.y,
-
                 targetRotation,
-
                 0.1
             );
     }
