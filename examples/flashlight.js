@@ -22,7 +22,7 @@ export function setupFlashlight(
     // 🔦 SPOTLIGHT
     flashlight = new THREE.SpotLight(
         0xffffff,
-        80, // 🔥 BRILLO
+        120, // 🔥 BRILLO
         1200,
         Math.PI / 8,
         0.4,

@@ -440,7 +440,107 @@ function animate() {
     updateCharacter(delta);
 
     // VR
-    updateVRMovement(delta);
+   function updateVRMovement(delta) {
+
+    const session =
+        renderer.xr.getSession();
+
+    if (!session) return;
+
+    const character =
+        getCharacter();
+
+    if (!character) return;
+
+    for (const source of session.inputSources) {
+
+        if (!source.gamepad) continue;
+
+        // 🎮 joystick izquierdo
+        const axes =
+            source.gamepad.axes;
+
+        const x =
+            axes[2] || 0;
+
+        const y =
+            axes[3] || 0;
+
+        // zona muerta
+        if (
+            Math.abs(x) < 0.15 &&
+            Math.abs(y) < 0.15
+        ) continue;
+
+        // velocidad
+        const speed =
+            140 * delta;
+
+        // -----------------------------------
+        // 🎥 DIRECCIÓN DE CABEZA
+        // -----------------------------------
+
+        const forward =
+            new THREE.Vector3();
+
+        camera.getWorldDirection(
+            forward
+        );
+
+        forward.y = 0;
+        forward.normalize();
+
+        // lateral
+        const right =
+            new THREE.Vector3();
+
+        right.crossVectors(
+            forward,
+            new THREE.Vector3(0, 1, 0)
+        );
+
+        right.normalize();
+
+        // -----------------------------------
+        // 🚶 MOVIMIENTO
+        // -----------------------------------
+
+        character.position.add(
+
+            forward
+                .clone()
+                .multiplyScalar(
+                    -y * speed
+                )
+        );
+
+        character.position.add(
+
+            right
+                .clone()
+                .multiplyScalar(
+                    x * speed
+                )
+        );
+
+        // -----------------------------------
+        // 👤 ROTAR CUERPO
+        // -----------------------------------
+
+        const targetRotation =
+            Math.atan2(
+                forward.x,
+                forward.z
+            );
+
+        character.rotation.y =
+            THREE.MathUtils.lerp(
+                character.rotation.y,
+                targetRotation,
+                0.08
+            );
+    }
+}
 
     // CAMARA NORMAL
     if (!renderer.xr.isPresenting) {
